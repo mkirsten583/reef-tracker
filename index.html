@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reef Tracker</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reef Tracker">
+<meta name="theme-color" content="#1f6fb2">
+<style>
+:root{--bg:#f3f6f9;--card:#fff;--ink:#1d2733;--mut:#69788a;--line:#dde4ea;--acc:#1f6fb2;--ok:#1f9d55;--low:#e08a00;--high:#d6336c;--band:rgba(31,157,85,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#0f151b;--card:#18212a;--ink:#e6edf3;--mut:#93a1b0;--line:#2a3643;--acc:#5aa9e6;--band:rgba(31,157,85,.18)}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.top h1{font-size:17px;margin:0;margin-right:8px}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:none;color:var(--mut);padding:7px 12px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--acc);color:#fff}
+main{max-width:1200px;margin:0 auto;padding:16px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:14px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.pc{border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;padding:10px;cursor:pointer;background:var(--card)}
+.pc.low{border-left-color:var(--low);background:rgba(224,138,0,.07)}
+.pc.high{border-left-color:var(--high);background:rgba(214,51,108,.07)}
+.ph{display:flex;justify-content:space-between;gap:6px;align-items:center}
+.pv{font-size:22px;font-weight:650;margin:2px 0}.pv small{font-size:12px;font-weight:400;color:var(--mut)}
+.pm{font-size:12px;color:var(--mut)}
+.tag{font-size:11px;padding:1px 7px;border-radius:99px;color:#fff;background:var(--ok);white-space:nowrap}
+.tag.low{background:var(--low)}.tag.high{background:var(--high)}.tag.warn{background:#8a63d2}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--mut);font-weight:600;position:sticky;top:0;background:var(--card)}
+.tw{overflow:auto;max-height:560px}
+input,select,textarea,button{font:inherit;color:var(--ink)}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;max-width:100%}
+input[type=number]{width:110px}
+input.in-low{border-color:var(--low);background:rgba(224,138,0,.12)}input.in-high{border-color:var(--high);background:rgba(214,51,108,.12)}input.in-ok{border-color:var(--ok)}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:7px 14px;cursor:pointer}
+.btn.sec{background:none;border:1px solid var(--line);color:var(--ink)}
+.btn.del{background:none;border:1px solid var(--line);color:var(--high);padding:3px 9px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+.row label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+.note{font-size:12px;color:var(--mut)}
+.banner{background:rgba(224,138,0,.12);border:1px solid var(--low);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.sug{font-size:13px}.sug b{font-weight:650}
+.hl-low{color:var(--low);font-weight:600}.hl-high{color:var(--high);font-weight:600}.hl-ok{color:var(--ok)}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--mut)}
+.drop.over{border-color:var(--acc);background:rgba(31,111,178,.07)}
+.chartbox{position:relative;height:380px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d2733;color:#fff;padding:9px 16px;border-radius:9px;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+#toast.on{opacity:1}
+.chk{display:flex;flex-direction:row!important;align-items:center;gap:5px}
+.eff{border:1px solid var(--line);border-radius:9px;padding:8px;margin:6px 0}
+@media(max-width:640px){main{padding:10px}.pv{font-size:19px}}
+.hero{--u:.7px;position:relative;width:100%;aspect-ratio:1672/941;background:#06203a url(reef-bg.jpg) center/cover no-repeat;border-radius:14px;overflow:hidden;margin-bottom:14px;color:#fff}
+.hero .ring{position:absolute;border-radius:50%;cursor:pointer;--c:#3ddc84;box-shadow:0 0 calc(var(--u)*14) calc(var(--u)*1) rgba(61,220,132,.28);border:calc(var(--u)*2.5) solid rgba(61,220,132,.35)}
+.ring.low,.mc.low{--c:#ffb02e}.ring.high,.mc.high{--c:#ff4d8d}
+.hero .ring.low{border:calc(var(--u)*6) solid #ffb02e;box-shadow:0 0 calc(var(--u)*26) calc(var(--u)*4) rgba(255,176,46,.6)}
+.hero .ring.high{border:calc(var(--u)*6) solid #ff4d8d;box-shadow:0 0 calc(var(--u)*26) calc(var(--u)*4) rgba(255,77,141,.65)}
+.hero .ring.none{box-shadow:none;border-color:transparent}
+.hero .ring:hover{background:rgba(255,255,255,.06)}
+.circ{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.cv{font-weight:650;line-height:1.05;font-size:calc(var(--u)*50);white-space:nowrap}
+.cu{font-weight:400;font-size:calc(var(--u)*20);opacity:.85}
+.cv.low{color:#ffc766}.cv.high{color:#ff86b2}.cv.ok{color:#fff}
+.cf{font-size:calc(var(--u)*17);font-weight:700;letter-spacing:.04em;margin-top:calc(var(--u)*2)}
+.cf.low{color:#ffc766}.cf.high{color:#ff86b2}
+.cd{font-size:calc(var(--u)*19);margin-top:calc(var(--u)*6);opacity:.92}
+.cm{font-size:calc(var(--u)*16);opacity:.75;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.circgrid{display:none}
+.scrollbox{max-height:62vh;overflow-y:auto;padding-right:6px;-webkit-overflow-scrolling:touch}
+@media(max-width:760px){
+ .hero{display:none}
+ .circgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;margin-bottom:14px;border-radius:14px;background:radial-gradient(ellipse at 30% 0%,#0b3b6a,#06203a 70%);color:#fff}
+ .mc{--c:#3ddc84;aspect-ratio:1;border-radius:50%;border:3px solid var(--c);box-shadow:0 0 16px rgba(0,0,0,.4),0 0 14px var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6px;background:rgba(5,20,40,.55);cursor:pointer;overflow:hidden}
+ .mc.none{border-color:rgba(255,255,255,.2);box-shadow:none}
+ .mn{font-size:13px;opacity:.9;margin-bottom:2px}
+ .mc .cv{font-size:26px}.mc .cu{font-size:11px}.mc .cf{font-size:11px}.mc .cd{font-size:11px;margin-top:3px}.mc .cm{font-size:10px;max-width:92%}
+ .mc:last-child{grid-column:1/-1;width:50%;justify-self:center}
+}
+</style>
+</head>
+<body>
+<header><div class="top"><h1>🪸 Reef Test Tracker</h1>
+<nav id="nav"></nav><span id="sync" style="margin-left:auto"></span></div></header>
+<main>
+<section id="tab-dash"></section>
+<section id="tab-add"></section>
+<section id="tab-hist"></section>
+<section id="tab-chart"></section>
+<section id="tab-dose"></section>
+<section id="tab-icp"></section>
+<section id="tab-set"></section>
+</main>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const fmt=(v,d=2)=>(v==null||isNaN(v))?'–':(+v).toFixed(d);
+const pad=n=>String(n).padStart(2,'0');
+const toLocal=ms=>{const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const fromLocal=s=>new Date(s).getTime();
+const fd=ms=>new Date(ms).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'2-digit'});
+const fdt=ms=>fd(ms)+' '+new Date(ms).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+const fr=v=>{if(v==null||isNaN(v))return '–';const a=Math.abs(v),d=a>=100?0:a>=10?1:a>=1?2:a>=0.1?3:4;return (v>0?'+':'')+v.toFixed(d)};
+const fa=v=>{if(v==null||isNaN(v))return '–';const a=Math.abs(v);return v.toFixed(a>=100?0:a>=10?1:a>=1?2:3)};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* ================= parameter definitions ================= */
+const MN={kit:'Test kit',hanna:'Hanna Checker',icp:'ICP'};
+const MCOL={kit:'#2a9d8f',hanna:'#e9a23b',icp:'#4361ee'};
+const MSHAPE={kit:'circle',hanna:'rectRot',icp:'triangle'};
+// k, name, unit, group, min, max, target, decimals, max safe change/day, core(entry form)
+const PP=(k,n,u,g,min,max,t,d,step,core)=>({k,n,u,g,min,max,t,d,step,core});
+const PARAMS=[
+PP('Alk','Alkalinity','dKH','Core',7,9,8,2,1,1),
+PP('Ca','Calcium','mg/L','Core',415,520,450,0,20,1),
+PP('Mg','Magnesium','mg/L','Core',1320,1500,1400,0,50,1),
+PP('Sal','Salinity','PSU','Core',34,36,35,3,null,1),
+PP('pH','pH','','Core',7.9,8.4,8.2,2,null,1),
+PP('Temp','Temperature','°C','Core',24,27,25.5,1,null,1),
+PP('NO3','Nitrate','mg/L','Nutrients',0.5,5,2,2,1,1),
+PP('PO4','Phosphate','mg/L','Nutrients',0.018,0.07,0.04,3,0.02,1),
+PP('P','Phosphorus (as P)','µg/L','Nutrients',6,23,12,1,5,1),
+PP('Si','Silicon','µg/L','Nutrients',0,200,null,0,null,0),
+PP('K','Potassium','mg/L','Major elements',380,480,420,0,20,1),
+PP('Cl','Chloride','mg/L','Major elements',19000,20000,19500,0,null,0),
+PP('Na','Sodium','mg/L','Major elements',10000,11300,10650,0,null,0),
+PP('Br','Bromide','mg/L','Major elements',60,70,65,1,null,0),
+PP('B','Boron','mg/L','Major elements',4,5,4.5,2,null,0),
+PP('F','Fluoride','mg/L','Major elements',0.9,1.5,1.3,2,null,0),
+PP('Sr','Strontium','mg/L','Major elements',8,12,10,1,1,0),
+PP('S','Sulphur','mg/L','Major elements',850,1000,900,0,null,0),
+PP('Li','Lithium','µg/L','Trace elements',150,250,200,0,null,0),
+PP('Mo','Molybdenum','µg/L','Trace elements',8,15,12,1,null,0),
+PP('I','Iodine','µg/L','Trace elements',30,90,60,1,20,0),
+PP('V','Vanadium','µg/L','Trace elements',0,3,null,1,null,0),
+PP('Zn','Zinc','µg/L','Trace elements',0,5,null,1,null,0),
+PP('Mn','Manganese','µg/L','Trace elements',0,3,null,1,null,0),
+PP('Ni','Nickel','µg/L','Trace elements',0,5,null,1,null,0),
+PP('Cr','Chromium','µg/L','Trace elements',0,1,null,1,null,0),
+PP('Co','Cobalt','µg/L','Trace elements',0,1,null,1,null,0),
+PP('Fe','Iron','µg/L','Trace elements',0,1,null,1,null,0),
+PP('Ba','Barium','µg/L','Trace elements',0,10,null,1,null,0),
+PP('Al','Aluminium','µg/L','Unwanted metals',0,60,null,1,null,0),
+PP('Sb','Antimony','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('As','Arsenic','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Pb','Lead','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Cd','Cadmium','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Cu','Copper','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('La','Lanthanum','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Hg','Mercury','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Sc','Scandium','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Se','Selenium','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Ti','Titanium','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('W','Tungsten','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Sn','Tin','µg/L','Unwanted metals',0,0,null,1,null,0),
+PP('Be','Beryllium','µg/L','Unwanted metals',0,0,null,1,null,0)
+];
+const PM=Object.fromEntries(PARAMS.map(p=>[p.k,p]));
+const GROUPS=['Core','Nutrients','Major elements','Trace elements','Unwanted metals'];
+
+/* Dry chemicals: effect on tank parameter (in the parameter's units) per 1 g/L of chemical in the dosing solution
+   i.e. S = f * (g/L). Tank change = mL dosed / (tank L * 1000) * S  */
+const CHEMS={
+NaHCO3:{n:'Sodium bicarbonate (NaHCO₃) – alkalinity',eff:[{p:'Alk',f:33.33}],def:80},
+Na2CO3:{n:'Sodium carbonate, anhydrous (Na₂CO₃) – alkalinity',eff:[{p:'Alk',f:52.84}],def:50},
+CaCl2_2:{n:'Calcium chloride dihydrate (CaCl₂·2H₂O)',eff:[{p:'Ca',f:272.6}],def:130},
+CaCl2_0:{n:'Calcium chloride anhydrous (CaCl₂)',eff:[{p:'Ca',f:361.1}],def:100},
+CaCl2_6:{n:'Calcium chloride hexahydrate (CaCl₂·6H₂O)',eff:[{p:'Ca',f:182.9}],def:190},
+MgCl2_6:{n:'Magnesium chloride hexahydrate (MgCl₂·6H₂O)',eff:[{p:'Mg',f:119.6}],def:150},
+MgSO4_7:{n:'Magnesium sulphate heptahydrate (Epsom salt)',eff:[{p:'Mg',f:98.6},{p:'S',f:130.1}],def:100},
+KCl:{n:'Potassium chloride (KCl)',eff:[{p:'K',f:524.4}],def:50},
+NaNO3:{n:'Sodium nitrate (NaNO₃)',eff:[{p:'NO3',f:729.5}],def:20},
+KNO3:{n:'Potassium nitrate (KNO₃)',eff:[{p:'NO3',f:613.3},{p:'K',f:386.7}],def:20},
+KH2PO4:{n:'Monopotassium phosphate (KH₂PO₄)',eff:[{p:'PO4',f:697.8},{p:'K',f:287.3}],def:5},
+SrCl2_6:{n:'Strontium chloride hexahydrate (SrCl₂·6H₂O)',eff:[{p:'Sr',f:328.6}],def:20},
+KI:{n:'Potassium iodide (KI)',eff:[{p:'I',f:764500}],def:1},
+CaOH2:{n:'Kalkwasser – calcium hydroxide (Ca(OH)₂)',eff:[{p:'Ca',f:540.9},{p:'Alk',f:75.58}],def:1.5,kalk:true}
+};
+
+const DEF_SETTINGS=()=>({tankL:0,evapL:0,rateDays:21,ranges:{},products:[],pref:{},lastKit:{},kits:{kit:[],hanna:[]}});
+let S={readings:[],doses:[],settings:DEF_SETTINGS(),del:[],updated:0};
+const LS='reefTracker.v1';
+
+/* ================= storage (local cache) ================= */
+function load(){
+  try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j){S={...S,...j};S.settings={...DEF_SETTINGS(),...(j.settings||{})}}}catch(e){}
+  S.del=S.del||[];
+}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('Could not save locally – storage full or blocked')}}
+function save(){
+  S.updated=Date.now();saveLocal();
+  if(MS&&ACC){setDirty(true);setSync('pend');clearTimeout(PUSH_T);PUSH_T=setTimeout(()=>cloudPush(),1500)}
+}
+
+/* ================= OneDrive sync (Microsoft Graph) ================= */
+const CONFIG={
+  CLIENT_ID:'bb503370-4120-42cd-9811-8a2f06a9412f',                       // paste your Azure Application (client) ID here, or enter it in Settings → OneDrive sync
+  FOLDER:'marc.kirsten/Browser Tools/Reef Tracker',// folder inside your OneDrive root (C:\Users\Marc.Kirsten\OneDrive) – created automatically
+  FILE:'reef-data.json',
+  SCOPES:['Files.ReadWrite','User.Read']
+};
+const REDIR=location.href.split('#')[0].split('?')[0].replace(/index\.html$/,'');
+const cid=()=>CONFIG.CLIENT_ID||localStorage.getItem('reefClientId')||'';
+let MS=null,ACC=null,ETAG=null,PUSH_T=null,PUSHING=false;
+const SYNC={s:'off',msg:'',t:null};
+const isDirty=()=>localStorage.getItem(LS+'.dirty')==='1';
+const setDirty=v=>{try{v?localStorage.setItem(LS+'.dirty','1'):localStorage.removeItem(LS+'.dirty')}catch(e){}};
+function setSync(s,msg){SYNC.s=s;SYNC.msg=msg||'';if(s==='ok')SYNC.t=Date.now();drawSync()}
+function drawSync(){
+  const el=$('#sync');if(!el)return;
+  const tm=SYNC.t?new Date(SYNC.t).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'';
+  const m={off:['Local only – set up OneDrive','goSet()'],err:['⚠ '+(SYNC.msg||'Sync problem')+' – retry','cloudNow()'],busy:['☁ Syncing…',''],ok:['☁ Synced '+tm,'cloudNow()'],out:['Sign in to OneDrive','cloudLogin()'],pend:['☁ Saving…','cloudNow()']}[SYNC.s]||['',''];
+  el.innerHTML=`<button class="btn sec" style="padding:4px 10px;font-size:12px" ${m[1]?`onclick="${m[1]}"`:''}>${esc(m[0])}</button>`;
+  if(TAB==='set'&&!EDIT){const c=$('#cloudbox');if(c)c.innerHTML=cloudCardInner()}
+}
+const goSet=()=>show('set');
+const GP=()=>'https://graph.microsoft.com/v1.0/me/drive/root:/'+CONFIG.FOLDER.split('/').map(encodeURIComponent).join('/')+'/'+encodeURIComponent(CONFIG.FILE);
+async function token(){
+  try{return (await MS.acquireTokenSilent({scopes:CONFIG.SCOPES,account:ACC})).accessToken}
+  catch(e){await MS.acquireTokenRedirect({scopes:CONFIG.SCOPES,account:ACC});throw new Error('Redirecting to sign in…')}
+}
+async function gfetch(url,opt={}){const t=await token();return fetch(url,{...opt,headers:{Authorization:'Bearer '+t,...(opt.headers||{})}})}
+function mergeRemote(R,keepLocalSettings){
+  const del=new Set([...(S.del||[]),...(R.del||[])]);
+  ['readings','doses'].forEach(a=>{
+    const m=new Map();
+    [...(R[a]||[]),...(S[a]||[])].forEach(x=>{if(del.has(x.id))return;const c=m.get(x.id);if(!c||(x.mod||0)>=(c.mod||0))m.set(x.id,x)});
+    S[a]=[...m.values()];
+  });
+  S.del=[...del].slice(-20000);
+  if(!keepLocalSettings&&R.settings)S.settings={...DEF_SETTINGS(),...R.settings};
+}
+async function cloudPull(first,depth=0){
+  if(!ACC)return;
+  try{
+    setSync('busy');
+    const m=await gfetch(GP());
+    if(m.status===404){ETAG=null;await cloudPush();return}
+    if(!m.ok)throw new Error('OneDrive error '+m.status);
+    const meta=await m.json();
+    if(!first&&meta.eTag===ETAG){if(isDirty())await cloudPush();else setSync('ok');return}
+    const u=meta['@microsoft.graph.downloadUrl'];
+    const c=u?await fetch(u):await gfetch(GP()+':/content');
+    if(!c.ok)throw new Error('Download failed '+c.status);
+    const R=await c.json();
+    const dirty=isDirty();
+    const ids=new Set([...(R.readings||[]),...(R.doses||[])].map(x=>x.id));
+    const localOnly=[...S.readings,...S.doses].some(x=>!ids.has(x.id));
+    mergeRemote(R,dirty);ETAG=meta.eTag;saveLocal();
+    if(dirty||localOnly)await cloudPush(depth);else setSync('ok');
+    if(TAB!=='add'&&TAB!=='icp'&&!(TAB==='set'&&EDIT))show(TAB);
+  }catch(e){setSync('err',e.message)}
+}
+async function cloudPush(depth=0){
+  if(!ACC||PUSHING)return;PUSHING=true;
+  try{
+    setSync('busy');
+    const headers={'Content-Type':'application/json'};if(ETAG)headers['If-Match']=ETAG;
+    const r=await gfetch(GP()+':/content',{method:'PUT',headers,body:JSON.stringify(S)});
+    if(r.status===412&&depth<2){PUSHING=false;await cloudPull(true,depth+1);return}
+    if(!r.ok)throw new Error('Save to OneDrive failed ('+r.status+')');
+    const j=await r.json();ETAG=j.eTag||ETAG;setDirty(false);setSync('ok');
+  }catch(e){setSync('err',e.message)}
+  PUSHING=false;
+}
+function cloudNow(){isDirty()?cloudPush():cloudPull(false)}
+function cloudLogin(){if(MS)MS.loginRedirect({scopes:CONFIG.SCOPES})}
+function cloudLogout(){if(MS&&ACC)MS.logoutRedirect({account:ACC,postLogoutRedirectUri:REDIR})}
+async function cloudInit(){
+  if(!cid()){setSync('off');return}
+  if(!window.msal){setSync('err','Microsoft sign-in library did not load');return}
+  try{
+    MS=new msal.PublicClientApplication({auth:{clientId:cid(),authority:'https://login.microsoftonline.com/consumers',redirectUri:REDIR,navigateToLoginRequestUrl:false},cache:{cacheLocation:'localStorage'}});
+    if(MS.initialize)await MS.initialize();
+    const r=await MS.handleRedirectPromise();
+    ACC=(r&&r.account)||MS.getAllAccounts()[0]||null;
+    if(!ACC){setSync('out');return}
+    MS.setActiveAccount(ACC);await cloudPull(true);
+  }catch(e){setSync('err',e.message)}
+}
+document.addEventListener('visibilitychange',()=>{if(!ACC)return;if(document.visibilityState==='visible')cloudPull(false);else if(isDirty())cloudPush()});
+function cloudCardInner(){
+  const hard=!!CONFIG.CLIENT_ID,st={off:'Not set up',err:'Problem: '+SYNC.msg,busy:'Syncing…',ok:'Synced '+(SYNC.t?new Date(SYNC.t).toLocaleTimeString('en-AU'):''),out:'Not signed in',pend:'Saving…'}[SYNC.s];
+  return `<h2>OneDrive sync</h2>
+  <p>Status: <b>${esc(st)}</b>${ACC?` · ${esc(ACC.username||'')}`:''}</p>
+  ${hard?'':`<div class="row"><label>Azure Application (client) ID<input id="cl_id" style="width:320px" value="${esc(localStorage.getItem('reefClientId')||'')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label><button class="btn" onclick="saveClientId()">Save &amp; reload</button></div>`}
+  <div class="row">${MS&&!ACC?'<button class="btn" onclick="cloudLogin()">Sign in with Microsoft</button>':''}${ACC?'<button class="btn sec" onclick="cloudNow()">Sync now</button><button class="btn sec" onclick="cloudLogout()">Sign out</button>':''}</div>
+  <p class="note">Data file: <b>OneDrive › ${esc(CONFIG.FOLDER.replace(/\//g,' › '))} › ${esc(CONFIG.FILE)}</b> (created automatically). Redirect URI to register in Azure (Single-page application): <b>${esc(REDIR)}</b></p>`;
+}
+function saveClientId(){const v=$('#cl_id').value.trim();if(v)localStorage.setItem('reefClientId',v);else localStorage.removeItem('reefClientId');location.reload()}
+
+/* ================= ranges / data access ================= */
+const rng=k=>({...PM[k],...(S.settings.ranges[k]||{})});
+const readingsFor=(p,f)=>S.readings.filter(r=>r.p===p&&(!f||f(r))).sort((a,b)=>a.ts-b.ts);
+const latest=p=>{const a=readingsFor(p);return a[a.length-1]};
+function statusOf(p,v){const r=rng(p);if(v<r.min-1e-9)return 'low';if(v>r.max+1e-9)return 'high';return 'ok'}
+const stLabel=s=>s==='ok'?'In range':s==='low'?'LOW':'HIGH';
+const fp=(p,v)=>fmt(v,rng(p).d);
+const rangeTxt=p=>{const r=rng(p);return r.max===0&&r.min===0?'0 (none wanted)':`${fmt(r.min,r.d)} – ${fmt(r.max,r.d)}`};
+
+function slope(pts){
+  const n=pts.length;if(n<2)return null;const t0=pts[0].ts;let sx=0,sy=0,sxx=0,sxy=0;
+  pts.forEach(p=>{const x=(p.ts-t0)/864e5;sx+=x;sy+=p.v;sxx+=x*x;sxy+=x*p.v});
+  const den=n*sxx-sx*sx;if(den<1e-9)return null;return (n*sxy-sx*sy)/den;
+}
+function rateInfo(p){
+  const all=readingsFor(p);if(all.length<2)return null;
+  const win=S.settings.rateDays*864e5,last=all[all.length-1].ts;
+  let pts=all.filter(r=>r.ts>=last-win);if(pts.length<2)pts=all.slice(-2);
+  if(pts[pts.length-1].ts-pts[0].ts<0.5*864e5)return null;
+  const s=slope(pts);if(s==null)return null;
+  return {perDay:s,n:pts.length,t0:pts[0].ts,t1:pts[pts.length-1].ts,mixed:new Set(pts.map(x=>x.m)).size>1};
+}
+function daysToLeave(p,v,rate){
+  const r=rng(p);if(!rate||Math.abs(rate)<1e-12)return null;
+  if(rate>0&&v<=r.max)return (r.max-v)/rate;
+  if(rate<0&&v>=r.min)return (v-r.min)/-rate;
+  return null;
+}
+
+/* ================= products & dosing maths ================= */
+function effects(prod){
+  if(prod.type==='diy'){
+    const c=CHEMS[prod.chem];if(!c)return [];
+    const gL=prod.concUnit==='mg/L'?prod.conc/1000:+prod.conc;
+    return c.eff.map(e=>({p:e.p,per:e.f*gL/1000}));   // param change per 1 mL in 1 L tank
+  }
+  return (prod.eff||[]).map(e=>{
+    if(e.mode==='conc')return {p:e.p,per:(+e.c)/1000};
+    const x=+e.x||0,y=+e.y||0,z=+e.z||0;return {p:e.p,per:x?z*y/x:0};
+  }).filter(e=>e.p);
+}
+const prodUnit=prod=>prod.type==='diy'?'mL':(prod.unit||'mL');
+const prodById=id=>S.settings.products.find(p=>p.id===id);
+const productsFor=p=>S.settings.products.map(prod=>({prod,e:effects(prod).find(e=>e.p===p)})).filter(x=>x.e&&x.e.per>0);
+function dailyAt(prod,ts){let v=+prod.daily||0;S.doses.filter(d=>d.pid===prod.id&&d.kind==='regular'&&d.ts<=ts).sort((a,b)=>a.ts-b.ts).forEach(d=>v=+d.amt);return v}
+function regularAmount(prod,t0,t1){
+  const ev=S.doses.filter(d=>d.pid===prod.id&&d.kind==='regular').sort((a,b)=>a.ts-b.ts);
+  let cur=+prod.daily||0,t=t0,tot=0;
+  for(const e of ev){if(e.ts<=t0){cur=+e.amt;continue}if(e.ts>=t1)break;tot+=cur*(e.ts-t)/864e5;t=e.ts;cur=+e.amt}
+  return tot+cur*(t1-t)/864e5;
+}
+function doseEffect(p,t0,t1){
+  const L=+S.settings.tankL;if(!L)return 0;let tot=0;
+  S.settings.products.forEach(prod=>{
+    const e=effects(prod).find(x=>x.p===p);if(!e)return;
+    let amt=regularAmount(prod,t0,t1);
+    S.doses.filter(d=>d.pid===prod.id&&d.kind==='single'&&d.ts>t0&&d.ts<=t1).forEach(d=>amt+=+d.amt);
+    tot+=amt*e.per/L;
+  });
+  return tot;
+}
+function doseChange(prod,amt){const L=+S.settings.tankL;return L?effects(prod).map(e=>({p:e.p,d:amt*e.per/L})):[]}
+
+function recommend(p){
+  const def=rng(p),L=+S.settings.tankL,lat=latest(p);if(!lat)return null;
+  const st=statusOf(p,lat.v),tgt=def.t!=null?def.t:(def.min+def.max)/2;
+  const o={p,def,lat,st,tgt,rate:rateInfo(p),prods:productsFor(p),text:[],level:st};
+  if(o.rate){const dl=daysToLeave(p,lat.v,o.rate.perDay);o.dl=dl;if(dl!=null&&dl<30&&st==='ok')o.level='warn'}
+  const prefId=S.settings.pref[p];
+  o.sel=o.prods.find(x=>x.prod.id===prefId)||o.prods[0]||null;
+  if(o.rate&&L){
+    const span=(o.rate.t1-o.rate.t0)/864e5;
+    o.doseEff=doseEffect(p,o.rate.t0,o.rate.t1)/span;
+    o.drift=o.rate.perDay-o.doseEff;           // change per day with no dosing (negative = being used up)
+  }
+  if(!o.sel){
+    if(st==='high'){
+      if(def.max>0){const f=(lat.v-def.max)/lat.v;o.text.push(`Above range. A water change of roughly <b>${fmt(f*100,0)}%</b> (with fresh salt containing ~0) would bring it to the upper limit; check for sources (salt mix, additives, media).`)}
+      else o.text.push(`Detected but none wanted – investigate the source (salt, additives, equipment, media) and water change.`);
+    }else if(st==='low')o.text.push(`Low – no dosing product is set up for ${esc(def.n)}. Add one in Settings → Dosing products.`);
+    return o;
+  }
+  if(!L){o.text.push('Set your tank volume in Settings to get dose amounts.');return o}
+  const per=o.sel.e.per,unit=prodUnit(o.sel.prod),curD=dailyAt(o.sel.prod,Date.now());
+  const others=o.prods.filter(x=>x.prod.id!==o.sel.prod.id).reduce((s,x)=>s+dailyAt(x.prod,Date.now())*x.e.per/L,0);
+  o.unit=unit;o.cur=curD;
+  if(o.drift!=null){
+    const need=Math.max(0,-o.drift);o.consume=-o.drift;
+    o.maint=Math.max(0,need-others)*L/per;
+  }
+  if(st==='low'||(st==='ok'&&lat.v<tgt&&false)){
+    const diff=tgt-lat.v,step=def.step,days=step?Math.max(1,Math.ceil(diff/step-1e-9)):1,perDay=diff/days;
+    o.diff=diff;o.days=days;o.extra=perDay*L/per;
+    let t=`Raise by <b>${fa(diff)} ${esc(def.u)}</b> to reach ${fp(p,tgt)}: dose <b>${fa(o.extra)} ${unit}</b> of ${esc(o.sel.prod.name)} ${days>1?`daily for ${days} days (limit ${step} ${esc(def.u)}/day)`:'as a single dose'}.`;
+    if(o.maint!=null)t+=` Then maintenance of <b>${fa(o.maint)} ${unit}/day</b> (currently ${fa(curD)}). During correction total ≈ <b>${fa(o.maint+o.extra)} ${unit}/day</b>.`;
+    else t+=' Add more readings over several days to calculate the maintenance dose.';
+    o.text.push(t);
+  }else if(st==='high'){
+    let t=`Above range.`;
+    if(curD>0)t+=` Reduce or pause ${esc(o.sel.prod.name)} (currently ${fa(curD)} ${unit}/day).`;
+    if(def.max>0)t+=` Water change ≈ ${fmt((lat.v-def.max)/lat.v*100,0)}% would bring it to the upper limit.`;
+    o.text.push(t);
+  }else{
+    if(o.maint!=null){
+      let t=`Holding level needs ≈ <b>${fa(o.maint)} ${unit}/day</b> of ${esc(o.sel.prod.name)} (currently ${fa(curD)}).`;
+      if(curD>0&&Math.abs(o.maint-curD)/curD>0.15)t+=o.maint>curD?' → <span class="hl-low">increase</span>':' → <span class="hl-high">decrease</span>';
+      else if(curD>0)t+=' <span class="hl-ok">Looks well balanced.</span>';
+      o.text.push(t);
+    }else o.text.push('In range. Need 2+ readings over a day or more to calculate a maintenance dose.');
+  }
+  const total=(o.extra||0)+(o.maint||0);
+  if(total>0){
+    const side=effects(o.sel.prod).filter(e=>e.p!==p).map(e=>`${esc(PM[e.p].n)} ${fr(total*e.per/L)} ${esc(PM[e.p].u)}/day`);
+    if(side.length)o.text.push(`<span class="note">Side effects at that dose: ${side.join(', ')}.</span>`);
+    const c=CHEMS[o.sel.prod.chem];
+    if(c&&c.kalk&&S.settings.evapL>0){
+      const cap=S.settings.evapL*1000;
+      o.text.push(total>cap?`<span class="hl-high">Needs ${fa(total)} mL/day of kalk but top-off is only ${fa(cap)} mL/day – kalk alone can't deliver this; supplement with another alk/Ca source.</span>`:`<span class="note">Kalk uses ${fmt(total/cap*100,0)}% of your ${fa(cap)} mL/day top-off. Add slowly (pH rise).</span>`);
+    }else if(c&&c.kalk)o.text.push('<span class="note">Kalk is normally dosed through the top-off – set daily evaporation in Settings to check the limit.</span>');
+  }
+  return o;
+}
+
+/* ================= tabs ================= */
+const TABS=[['dash','Dashboard'],['add','Add test'],['hist','History'],['chart','Charts'],['dose','Dosing'],['icp','ICP import'],['set','Settings']];
+let TAB='dash';
+function show(t){
+  TAB=t;
+  $('#nav').innerHTML=TABS.map(([k,n])=>`<button class="${k===t?'on':''}" onclick="show('${k}')">${n}</button>`).join('');
+  $$('main section').forEach(s=>s.classList.toggle('on',s.id==='tab-'+t));
+  ({dash:renderDash,add:renderAdd,hist:renderHist,chart:renderChart,dose:renderDose,icp:renderIcp,set:renderSet})[t]();
+  window.scrollTo(0,0);
+}
+
+/* ================= dashboard ================= */
+function renderDash(){
+  const shown=new Set(CIRCLES.flatMap(c=>c.keys));
+  const withData=PARAMS.filter(p=>latest(p.k));
+  const flagged=withData.filter(p=>statusOf(p.k,latest(p.k).v)!=='ok');
+  let h='';
+  if(!+S.settings.tankL)h+=`<div class="banner">Set your <b>tank volume</b> and dosing products in <a href="#" onclick="show('set');return false">Settings</a> to enable dose calculations.</div>`;
+  const cs=CIRCLES.map(c=>circData(c));
+  // desktop: image with circles
+  h+=`<div class="hero" id="hero">${cs.map(circHero).join('')}</div>`;
+  // phone: circle grid
+  h+=`<div class="circgrid">${cs.map(circMobile).join('')}</div>`;
+  h+=`<div class="card"><h2>Out of spec (${flagged.length})</h2>`;
+  if(!withData.length)h+='<p class="note">No results yet – add a test, or import an ICP report.</p>';
+  else if(!flagged.length)h+='<div class="hl-ok">Everything with data is within your set ranges. 🎉</div>';
+  else h+=`<div class="grid">${flagged.map(p=>card(p.k)).join('')}</div>`;
+  h+='</div>';
+  const rest=withData.filter(p=>!shown.has(p.k));
+  h+=`<div class="card"><h2>All other results</h2><div class="scrollbox">`;
+  if(!rest.length)h+='<p class="note">Nothing else recorded yet.</p>';
+  GROUPS.forEach(g=>{const ps=rest.filter(p=>p.g===g);if(!ps.length)return;h+=`<h3>${g}</h3><div class="grid">${ps.map(p=>card(p.k)).join('')}</div>`});
+  h+=`</div><p class="note" style="margin-top:8px">Scroll for more. Tap any tile or circle to open its chart. Trend uses a straight-line fit over the last ${S.settings.rateDays} days of readings (⚠ = mixed methods, which can disagree).</p></div>`;
+  $('#tab-dash').innerHTML=h;fitHero();
+}
+// positions are in pixels of the 1672 x 941 background image
+const CIRCLES=[
+  {n:'Calcium',keys:['Ca'],cx:288,cy:250,r:160,oy:64},
+  {n:'Magnesium',keys:['Mg'],cx:652,cy:250,r:160,oy:64},
+  {n:'Alkalinity',keys:['Alk'],cx:1018,cy:250,r:160,oy:64},
+  {n:'Nitrate',keys:['NO3'],cx:1382,cy:250,r:160,oy:64},
+  {n:'Phosphate',keys:['PO4','P'],cx:457,cy:633,r:165,oy:70},
+  {n:'Iodine',keys:['I'],cx:836,cy:633,r:165,oy:70},
+  {n:'Strontium',keys:['Sr'],cx:1215,cy:633,r:165,oy:70}
+];
+function circData(c){
+  let best=null;c.keys.forEach(k=>{const l=latest(k);if(l&&(!best||l.ts>best.l.ts))best={k,l}});
+  if(!best)return {c,k:c.keys[0],none:true};
+  const st=statusOf(best.k,best.l.v),r=rng(best.k),ri=rateInfo(best.k);
+  return {c,k:best.k,l:best.l,st,r,ri,val:fp(best.k,best.l.v),unit:r.u+(best.k==='P'?' as P':'')};
+}
+function circText(d){
+  if(d.none)return `<div class="cv">–</div><div class="cd">no results yet</div>`;
+  const arrow=d.st==='low'?'▼ LOW':d.st==='high'?'▲ HIGH':'';
+  return `<div class="cv ${d.st}">${d.val}<span class="cu"> ${esc(d.unit)}</span></div>
+  ${arrow?`<div class="cf ${d.st}">${arrow}</div>`:''}
+  <div class="cd">${fd(d.l.ts)}</div>
+  <div class="cm">${esc(MN[d.l.m])}${d.l.dev?' · '+esc(d.l.dev):''}</div>`;
+}
+function circHero(d){
+  const c=d.c,W=1672,H=941,bw=240,bh=150,st=d.none?'none':d.st;
+  return `<div class="ring ${st}" onclick="gotoChart('${d.k}')" style="left:${(c.cx-c.r)/W*100}%;top:${(c.cy-c.r)/H*100}%;width:${2*c.r/W*100}%;height:${2*c.r/H*100}%"></div>
+  <div class="circ" style="left:${(c.cx-bw/2)/W*100}%;top:${(c.cy+c.oy-bh/2)/H*100}%;width:${bw/W*100}%;height:${bh/H*100}%">${circText(d)}</div>`;
+}
+function circMobile(d){
+  const st=d.none?'none':d.st;
+  return `<div class="mc ${st}" onclick="gotoChart('${d.k}')"><div class="mn">${d.c.n}</div>${circText(d)}</div>`;
+}
+function fitHero(){const h=$('#hero');if(h)h.style.setProperty('--u',(h.clientWidth/1672)+'px')}
+window.addEventListener('resize',fitHero);
+
+function card(k){
+  const r=rng(k),l=latest(k),st=statusOf(k,l.v),ri=rateInfo(k);
+  let rate='';
+  if(ri){const dl=daysToLeave(k,l.v,ri.perDay);rate=`<div class="pm">Trend ${fr(ri.perDay)} ${esc(r.u)}/day (${fr(ri.perDay*7)}/wk)${ri.mixed?' ⚠':''}</div>`;
+    if(dl!=null&&dl<30&&st==='ok')rate+=`<div class="pm hl-low">Leaves range in ~${fmt(dl,0)} d</div>`}
+  return `<div class="pc ${st}" onclick="gotoChart('${k}')"><div class="ph"><b>${esc(r.n)}</b><span class="tag ${st}">${stLabel(st)}</span></div>
+  <div class="pv">${fp(k,l.v)} <small>${esc(r.u)}</small></div>
+  <div class="pm">${MN[l.m]}${l.dev?' · '+esc(l.dev):''} · ${fd(l.ts)}</div>
+  <div class="pm">Range ${rangeTxt(k)}</div>${rate}</div>`;
+}
+function gotoChart(k){CS.p=k;show('chart')}
+
+/* ================= add test ================= */
+const ADD={m:'kit',extra:[],vals:{},kit:{},ts:null,prov:'',note:''};
+const KIT_SUGG=['Salifert','Red Sea Pro','Red Sea Reef Foundation','Elos','Nyos','Fauna Marin','Tropic Marin','Seachem','API','Aquaforest','Sera','JBL','Hanna'];
+const HANNA={Alk:'Hanna Alkalinity Checker',Ca:'Hanna Calcium Checker',Mg:'Hanna Magnesium Checker',P:'Hanna Phosphorus ULR Checker',PO4:'Hanna Phosphate Checker',NO3:'Hanna Nitrate Checker',Sal:'Hanna Salinity Checker',pH:'Hanna pH Checker'};
+const addKeys=()=>{const s=new Set([...PARAMS.filter(p=>p.core).map(p=>p.k),...ADD.extra]);return PARAMS.filter(p=>s.has(p.k)).map(p=>p.k)};
+function grabAdd(){
+  if(!$('#a_ts'))return;
+  ADD.ts=fromLocal($('#a_ts').value);ADD.note=$('#a_note').value;if($('#a_prov'))ADD.prov=$('#a_prov').value;
+  addKeys().forEach(k=>{const v=$('#v_'+k),kk=$('#k_'+k);if(v)ADD.vals[k]=v.value;if(kk)ADD.kit[k]=kk.value});
+}
+function renderAdd(){
+  if(!ADD.ts||isNaN(ADD.ts))ADD.ts=Date.now();
+  const keys=addKeys(),m=ADD.m;
+  const dl=k=>{const names=new Set();if(S.settings.lastKit[m+':'+k])names.add(S.settings.lastKit[m+':'+k]);(S.settings.kits[m]||[]).forEach(x=>names.add(x));
+    if(m==='hanna'){if(HANNA[k])names.add(HANNA[k])}else KIT_SUGG.forEach(x=>names.add(x));return [...names].map(x=>`<option value="${esc(x)}">`).join('')};
+  let h=`<div class="card"><h2>Record test results</h2>
+  <div class="row">
+   <label>Date &amp; time<input type="datetime-local" id="a_ts" value="${toLocal(ADD.ts)}"></label>
+   <button class="btn sec" onclick="$('#a_ts').value=toLocal(Date.now())">Now</button>
+   <label>Method<select id="a_m" onchange="grabAdd();ADD.m=this.value;renderAdd()">${Object.entries(MN).map(([k,n])=>`<option value="${k}" ${k===m?'selected':''}>${n}</option>`).join('')}</select></label>
+   ${m==='icp'?`<label>ICP provider<input id="a_prov" list="dl_prov" value="${esc(ADD.prov)}" placeholder="e.g. TRITON, ATI, Oceamo"><datalist id="dl_prov"><option value="TRITON Lab ICP-OES"><option value="ATI"><option value="Oceamo"><option value="Fauna Marin"><option value="Reef Chemistry"></datalist></label>`:''}
+   <label style="flex:1;min-width:200px">Note<input id="a_note" value="${esc(ADD.note)}" placeholder="optional"></label>
+  </div>
+  <div class="tw"><table><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Range</th>${m!=='icp'?`<th>${m==='hanna'?'Checker / model':'Kit type'}</th>`:''}</tr>`;
+  keys.forEach(k=>{const r=rng(k);
+    const kv=ADD.kit[k]!==undefined?ADD.kit[k]:(S.settings.lastKit[m+':'+k]||'');
+    h+=`<tr><td>${esc(r.n)}</td><td><input type="number" step="any" id="v_${k}" value="${esc(ADD.vals[k]||'')}" oninput="flagIn(this,'${k}')"></td><td>${esc(r.u)}</td><td class="note">${rangeTxt(k)}</td>
+    ${m!=='icp'?`<td><input id="k_${k}" list="dl_${k}" value="${esc(kv)}" placeholder="${m==='hanna'?'e.g. '+esc(HANNA[k]||'Hanna checker'):'e.g. Salifert KH/Alk'}" style="width:220px"><datalist id="dl_${k}">${dl(k)}</datalist></td>`:''}</tr>`});
+  h+=`</table></div>
+  <div class="row" style="margin-top:10px"><label>Add another parameter<select id="a_more" onchange="grabAdd();if(this.value){ADD.extra.push(this.value)}renderAdd()"><option value="">Select…</option>${PARAMS.filter(p=>!keys.includes(p.k)).map(p=>`<option value="${p.k}">${esc(p.n)} (${p.g})</option>`).join('')}</select></label>
+  <button class="btn" onclick="saveAdd()">Save results</button></div>
+  <p class="note">Leave blank any parameter you didn't test. For a full ICP report use the <a href="#" onclick="show('icp');return false">ICP import</a> tab. Hanna ULR Phosphorus reads in ppb as P → enter under “Phosphorus (as P)”.</p></div>`;
+  $('#tab-add').innerHTML=h;
+  keys.forEach(k=>{const i=$('#v_'+k);if(i&&i.value)flagIn(i,k)});
+}
+function flagIn(el,k){const v=parseFloat(el.value);el.className=isNaN(v)?'':'in-'+statusOf(k,v)}
+function saveAdd(){
+  grabAdd();const ts=ADD.ts;if(isNaN(ts))return toast('Pick a date and time');
+  let n=0;
+  addKeys().forEach(k=>{
+    const raw=ADD.vals[k];if(raw===undefined||raw==='')return;const v=parseFloat(raw);if(isNaN(v))return;
+    const dev=ADD.m==='icp'?(ADD.prov||''):(ADD.kit[k]||'');
+    S.readings.push({id:uid(),ts,p:k,v,m:ADD.m,dev,note:ADD.note||''});
+    if(dev&&ADD.m!=='icp'){S.settings.lastKit[ADD.m+':'+k]=dev;const L=S.settings.kits[ADD.m]=S.settings.kits[ADD.m]||[];if(!L.includes(dev))L.push(dev)}
+    n++;
+  });
+  if(!n)return toast('Enter at least one value');
+  save();ADD.vals={};ADD.ts=null;ADD.note='';toast(`Saved ${n} reading${n>1?'s':''}`);show('dash');
+}
+
+/* ================= history ================= */
+const HF={p:'',m:'',q:''};
+function renderHist(){
+  let rows=S.readings.filter(r=>(!HF.p||r.p===HF.p)&&(!HF.m||r.m===HF.m)).sort((a,b)=>b.ts-a.ts);
+  const sel=(id,opts,val)=>`<select id="${id}" onchange="HF.${id.slice(2)}=this.value;renderHist()">${opts}</select>`;
+  let h=`<div class="card"><h2>Results history (${rows.length})</h2><div class="row">
+  <label>Parameter${sel('h_p','<option value="">All</option>'+PARAMS.map(p=>`<option value="${p.k}" ${HF.p===p.k?'selected':''}>${esc(p.n)}</option>`).join(''))}</label>
+  <label>Method${sel('h_m','<option value="">All</option>'+Object.entries(MN).map(([k,n])=>`<option value="${k}" ${HF.m===k?'selected':''}>${n}</option>`).join(''))}</label>
+  <button class="btn sec" onclick="exportCSV()">Export CSV</button></div>
+  <div class="tw"><table><tr><th>Date</th><th>Parameter</th><th>Value</th><th>Status</th><th>Method</th><th>Kit / provider</th><th>Note</th><th></th></tr>`;
+  rows.slice(0,1500).forEach(r=>{const st=statusOf(r.p,r.v);
+    h+=`<tr><td>${fdt(r.ts)}</td><td>${esc(rng(r.p).n)}</td><td><b>${fp(r.p,r.v)}</b> ${esc(rng(r.p).u)}</td><td><span class="tag ${st}">${stLabel(st)}</span></td><td>${MN[r.m]}</td><td>${esc(r.dev||'')}${r.sample?` <span class="note">(${esc(r.sample)})</span>`:''}</td><td class="note">${esc(r.note||'')}</td>
+    <td style="white-space:nowrap"><button class="btn del" onclick="editReading('${r.id}')" style="color:var(--acc)">Edit</button> <button class="btn del" onclick="delReading('${r.id}')">✕</button></td></tr>`});
+  h+='</table></div></div>';
+  $('#tab-hist').innerHTML=h;
+}
+function delReading(id){if(!confirm('Delete this reading?'))return;S.readings=S.readings.filter(r=>r.id!==id);S.del.push(id);save();renderHist()}
+function editReading(id){const r=S.readings.find(x=>x.id===id);const v=prompt(`New value for ${rng(r.p).n} (${rng(r.p).u})`,r.v);if(v===null)return;const n=parseFloat(v);if(isNaN(n))return toast('Not a number');r.v=n;r.mod=Date.now();save();renderHist()}
+function exportCSV(){
+  const rows=[['datetime','parameter','symbol','value','unit','method','kit_or_provider','sample','note']];
+  [...S.readings].sort((a,b)=>a.ts-b.ts).forEach(r=>rows.push([new Date(r.ts).toISOString(),rng(r.p).n,r.p,r.v,rng(r.p).u,MN[r.m],r.dev||'',r.sample||'',r.note||'']));
+  dl('reef-results.csv',rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');
+}
+function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+/* ================= charts ================= */
+const CS={p:'Alk',mode:'value',days:365,methods:{kit:1,hanna:1,icp:1},doses:true,allDoses:false,trend:true};
+let CHART=null;
+const bandPlugin={id:'band',beforeDatasetsDraw(c){const o=c.options.plugins.band;if(!o||!o.on)return;const{ctx,chartArea:a,scales:{y}}=c;
+  const lo=Math.max(o.min,y.min),hi=Math.min(o.max,y.max);if(hi<=lo)return;
+  ctx.save();ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--band')||'rgba(31,157,85,.12)';
+  const y1=y.getPixelForValue(hi),y0=y.getPixelForValue(lo);ctx.fillRect(a.left,y1,a.right-a.left,y0-y1);ctx.restore()}};
+const dosePlugin={id:'doselines',afterDatasetsDraw(c){const o=c.options.plugins.doselines;if(!o||!o.list)return;const{ctx,chartArea:a,scales:{x}}=c;
+  ctx.save();ctx.font='10px system-ui';
+  o.list.forEach(d=>{const px=x.getPixelForValue(d.ts);if(px<a.left||px>a.right)return;
+    ctx.strokeStyle=d.kind==='single'?'#e76f51':'#8a63d2';ctx.lineWidth=1.2;ctx.setLineDash(d.kind==='single'?[4,3]:[]);
+    ctx.beginPath();ctx.moveTo(px,a.top);ctx.lineTo(px,a.bottom);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=ctx.strokeStyle;ctx.save();ctx.translate(px+3,a.top+4);ctx.rotate(Math.PI/2);ctx.fillText(d.label,0,0);ctx.restore()});
+  ctx.restore()}};
+function intervals(rows){
+  const out=[];for(let i=1;i<rows.length;i++){const a=rows[i-1],b=rows[i],days=(b.ts-a.ts)/864e5;if(days<0.2)continue;
+    out.push({a,b,days,d:b.v-a.v,rate:(b.v-a.v)/days,cross:a.m!==b.m})}return out;
+}
+function renderChart(){
+  const p=CS.p,r=rng(p);
+  let h=`<div class="card"><h2>Charts</h2><div class="row">
+  <label>Parameter<select onchange="CS.p=this.value;renderChart()">${GROUPS.map(g=>`<optgroup label="${g}">${PARAMS.filter(x=>x.g===g).map(x=>`<option value="${x.k}" ${x.k===p?'selected':''}>${esc(x.n)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+  <label>Show<select onchange="CS.mode=this.value;renderChart()"><option value="value" ${CS.mode==='value'?'selected':''}>Level</option><option value="rate" ${CS.mode==='rate'?'selected':''}>Rate of change per day</option></select></label>
+  <label>Period<select onchange="CS.days=+this.value;renderChart()">${[[30,'30 days'],[90,'90 days'],[180,'6 months'],[365,'1 year'],[0,'All']].map(([v,n])=>`<option value="${v}" ${CS.days===v?'selected':''}>${n}</option>`).join('')}</select></label>
+  ${Object.entries(MN).map(([k,n])=>`<label class="chk"><input type="checkbox" ${CS.methods[k]?'checked':''} onchange="CS.methods['${k}']=this.checked?1:0;renderChart()"> <span style="color:${MCOL[k]}">●</span> ${n}</label>`).join('')}
+  <label class="chk"><input type="checkbox" ${CS.trend?'checked':''} onchange="CS.trend=this.checked;renderChart()"> Trend line</label>
+  <label class="chk"><input type="checkbox" ${CS.doses?'checked':''} onchange="CS.doses=this.checked;renderChart()"> Dosing markers</label>
+  <label class="chk"><input type="checkbox" ${CS.allDoses?'checked':''} onchange="CS.allDoses=this.checked;renderChart()"> …all products</label></div>
+  <div class="chartbox"><canvas id="cv"></canvas></div>
+  <p class="note">Green band = your target range. Dashed orange lines = single doses, purple = changes to regular daily dose.</p></div><div class="card" id="ivl"></div>`;
+  $('#tab-chart').innerHTML=h;
+  drawChart();
+}
+function drawChart(){
+  const p=CS.p,r=rng(p),since=CS.days?Date.now()-CS.days*864e5:0;
+  const rows=readingsFor(p,x=>CS.methods[x.m]&&x.ts>=since);
+  const all=readingsFor(p,x=>CS.methods[x.m]);
+  const sets=[];
+  const tip=x=>x.r;
+  if(CS.mode==='value'){
+    ['kit','hanna','icp'].forEach(m=>{const d=rows.filter(x=>x.m===m).map(x=>({x:x.ts,y:x.v,r:x}));
+      if(d.length)sets.push({label:MN[m],data:d,showLine:false,pointStyle:MSHAPE[m],backgroundColor:MCOL[m],borderColor:MCOL[m],pointRadius:6,pointHoverRadius:8,order:1})});
+    if(rows.length>1)sets.push({label:'Connect',data:rows.map(x=>({x:x.ts,y:x.v})),showLine:true,borderColor:'#8895a3',borderWidth:1,pointRadius:0,order:5});
+    if(CS.trend){const ri=rateInfo(p);if(ri){const pts=readingsFor(p).filter(x=>x.ts>=ri.t0&&x.ts<=ri.t1);const s=ri.perDay,mt=pts.reduce((a,b)=>a+b.ts,0)/pts.length,mv=pts.reduce((a,b)=>a+b.v,0)/pts.length;
+      sets.push({label:'Trend '+fr(s)+'/day',data:[{x:ri.t0,y:mv+s*(ri.t0-mt)/864e5},{x:ri.t1,y:mv+s*(ri.t1-mt)/864e5}],showLine:true,borderColor:'#e76f51',borderWidth:2.5,pointRadius:0,order:0})}}
+  }else{
+    const iv=intervals(all.filter(x=>x.ts>=since-1e12*0));
+    const ivf=iv.filter(i=>i.b.ts>=since);
+    const same=ivf.filter(i=>!i.cross).map(i=>({x:i.b.ts,y:i.rate,i}));
+    const cross=ivf.filter(i=>i.cross).map(i=>({x:i.b.ts,y:i.rate,i}));
+    if(same.length)sets.push({label:'Rate (same method)',data:same,showLine:true,borderColor:'#4361ee',backgroundColor:'#4361ee',pointRadius:5,borderWidth:1.5});
+    if(cross.length)sets.push({label:'Rate (across methods – less reliable)',data:cross,showLine:false,pointStyle:'crossRot',borderColor:'#999',backgroundColor:'#999',pointRadius:7});
+  }
+  // doses
+  let dlist=[];
+  if(CS.doses){
+    const ok=new Set(CS.allDoses?S.settings.products.map(x=>x.id):S.settings.products.filter(pr=>effects(pr).some(e=>e.p===p)).map(x=>x.id));
+    dlist=S.doses.filter(d=>ok.has(d.pid)&&d.ts>=since).map(d=>{const pr=prodById(d.pid);return {ts:d.ts,kind:d.kind,label:`${pr?pr.name:'?'} ${d.kind==='single'?'+':'→'}${d.amt}${pr?prodUnit(pr):''}${d.kind==='regular'?'/day':''}`}});
+  }
+  const allTs=[...rows.map(x=>x.ts),...dlist.map(d=>d.ts),Date.now()];
+  const xmin=Math.min(...allTs),xmax=Math.max(...allTs);
+  const vals=rows.map(x=>x.v);
+  if(CHART){CHART.destroy();CHART=null}
+  if(!window.Chart){$('#cv').parentNode.innerHTML='<p class="note">Chart library could not load (offline?). The History tab still has all your data.</p>';renderIntervals(all);return}
+  const ymin=CS.mode==='value'?Math.min(r.min,...(vals.length?vals:[r.min])):undefined,ymax=CS.mode==='value'?Math.max(r.max,...(vals.length?vals:[r.max])):undefined;
+  const padv=CS.mode==='value'?(ymax-ymin||1)*0.12:0;
+  CHART=new Chart($('#cv'),{type:'scatter',data:{datasets:sets},plugins:[bandPlugin,dosePlugin],options:{
+    responsive:true,maintainAspectRatio:false,animation:false,
+    scales:{x:{type:'linear',min:xmin-(xmax-xmin)*0.03,max:xmax+(xmax-xmin)*0.03+1,ticks:{callback:v=>fd(v),maxTicksLimit:8}},
+      y:{title:{display:true,text:CS.mode==='value'?`${r.n} (${r.u})`:`${r.n} change per day (${r.u}/day)`},suggestedMin:ymin!=null?ymin-padv:undefined,suggestedMax:ymax!=null?ymax+padv:undefined}},
+    plugins:{band:{on:CS.mode==='value',min:r.min,max:r.max},doselines:{list:dlist},legend:{labels:{filter:i=>i.text!=='Connect'}},
+      tooltip:{filter:i=>i.dataset.label!=='Connect',callbacks:{label:c=>{const o=c.raw;if(o.r)return `${MN[o.r.m]}: ${fp(p,o.r.v)} ${r.u}${o.r.dev?' ('+o.r.dev+')':''} – ${fdt(o.r.ts)}`;
+        if(o.i)return `${fr(o.i.rate)} ${r.u}/day (${fp(p,o.i.a.v)}→${fp(p,o.i.b.v)} over ${fmt(o.i.days,1)} d)${o.i.cross?' [across methods]':''}`;return `${c.dataset.label}`}}}}}});
+  renderIntervals(all.filter(x=>x.ts>=since-0));
+}
+function renderIntervals(rows){
+  const p=CS.p,r=rng(p),iv=intervals(rows);let h=`<h2>Rate of change – ${esc(r.n)}</h2>`;
+  if(!iv.length){h+='<p class="note">Need at least two readings (more than ~5 hours apart) to calculate a rate.</p>'}
+  else{h+=`<div class="tw"><table><tr><th>From</th><th>To</th><th>Change</th><th>Days</th><th>Per day</th><th>Per week</th><th>Dosing between</th></tr>`;
+    iv.slice().reverse().forEach(i=>{
+      const ds=S.doses.filter(d=>d.ts>i.a.ts&&d.ts<=i.b.ts&&(CS.allDoses||(prodById(d.pid)&&effects(prodById(d.pid)).some(e=>e.p===p)))).map(d=>{const pr=prodById(d.pid);return `${esc(pr?pr.name:'?')} ${d.kind==='single'?'+'+d.amt:'→'+d.amt+'/day'}`}).join('; ');
+      h+=`<tr><td>${fp(p,i.a.v)} <span class="note">${fd(i.a.ts)} · ${MN[i.a.m]}</span></td><td>${fp(p,i.b.v)} <span class="note">${fd(i.b.ts)} · ${MN[i.b.m]}</span></td><td>${fr(i.d)}</td><td>${fmt(i.days,1)}</td><td><b>${fr(i.rate)}</b></td><td>${fr(i.rate*7)}</td><td class="note">${ds||''}${i.cross?' <span class="tag warn">cross-method</span>':''}</td></tr>`});
+    h+='</table></div><p class="note">Units: '+esc(r.u)+'. Rows flagged “cross-method” compare different testing methods, which may differ by more than the true change.</p>'}
+  $('#ivl').innerHTML=h;
+}
+
+/* ================= dosing tab ================= */
+function renderDose(){
+  const L=+S.settings.tankL,prods=S.settings.products;
+  let h='';
+  if(!L||!prods.length)h+=`<div class="banner">${!L?'Set tank volume. ':''}${!prods.length?'Add your dosing products. ':''}Go to <a href="#" onclick="show('set');return false">Settings</a> – recommendations need both.</div>`;
+  // recommendations
+  const recs=PARAMS.map(p=>recommend(p.k)).filter(Boolean).filter(r=>r.level!=='ok'||r.sel);
+  h+=`<div class="card"><h2>Recommendations</h2>`;
+  if(!recs.length)h+='<p class="note">Nothing to show yet.</p>';
+  else{h+=`<div class="tw"><table><tr><th>Parameter</th><th>Latest</th><th>Target</th><th>Trend / day</th><th>Used up / day</th><th>Product</th><th>Suggestion</th></tr>`;
+    recs.sort((a,b)=>({high:0,low:0,warn:1,ok:2}[a.level]-{high:0,low:0,warn:1,ok:2}[b.level]));
+    recs.forEach(o=>{const p=o.p;
+      h+=`<tr><td><b>${esc(o.def.n)}</b></td><td><span class="hl-${o.st==='ok'?'ok':o.st}">${fp(p,o.lat.v)} ${esc(o.def.u)}</span><br><span class="note">${fd(o.lat.ts)} · ${MN[o.lat.m]}</span> <span class="tag ${o.level}">${o.level==='warn'?'DRIFTING':stLabel(o.st)}</span></td>
+      <td>${fp(p,o.tgt)}</td><td>${o.rate?fr(o.rate.perDay)+(o.rate.mixed?' ⚠':''):'–'}${o.dl!=null&&o.level==='warn'?`<br><span class="note hl-low">out of range in ~${fmt(o.dl,0)} d</span>`:''}</td>
+      <td>${o.consume!=null?fa(o.consume)+' '+esc(o.def.u):'–'}</td>
+      <td>${o.prods.length?`<select onchange="S.settings.pref['${p}']=this.value;save();renderDose()">${o.prods.map(x=>`<option value="${x.prod.id}" ${o.sel&&x.prod.id===o.sel.prod.id?'selected':''}>${esc(x.prod.name)}</option>`).join('')}</select>`:'<span class="note">none</span>'}</td>
+      <td class="sug">${o.text.join('<br>')||'<span class="note">No action needed.</span>'}</td></tr>`});
+    h+='</table></div>';}
+  h+=`<p class="note">“Used up / day” = (observed trend) − (what your logged dosing should have added), so it only works if doses are logged. Estimates assume even mixing and ignore the small volume added. Correct large deviations gradually (limits editable in Settings). Alkalinity and pH swings stress corals more than slightly-off absolute numbers.</p></div>`;
+  // calculator
+  h+=`<div class="card"><h2>Dose calculator</h2>`;
+  if(!prods.length)h+='<p class="note">Add a product first.</p>';
+  else{
+    h+=`<div class="row"><label>Product<select id="c_prod" onchange="calcRender()">${prods.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>
+    <label>Amount dosed<input type="number" step="any" id="c_amt" value="10" oninput="calcRender()"></label><span id="c_unit" class="note"></span></div><div id="c_out"></div>`;
+  }
+  h+='</div>';
+  // log
+  h+=`<div class="card"><h2>Log a dose / dosing change</h2>`;
+  if(!prods.length)h+='<p class="note">Add a product in Settings first.</p>';
+  else h+=`<div class="row">
+   <label>Date &amp; time<input type="datetime-local" id="d_ts" value="${toLocal(Date.now())}"></label>
+   <label>Product<select id="d_prod" onchange="logPrev()">${prods.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>
+   <label>What<select id="d_kind" onchange="logPrev()"><option value="single">Single adjustment dose</option><option value="regular">Change regular daily dose to…</option></select></label>
+   <label>Amount (<span id="d_unit"></span>)<input type="number" step="any" id="d_amt" oninput="logPrev()"></label>
+   <label style="flex:1;min-width:160px">Note<input id="d_note"></label>
+   <button class="btn" onclick="addDose()">Log</button></div><div id="d_prev" class="note"></div>`;
+  h+=`<h3>Dosing history</h3><div class="tw"><table><tr><th>Date</th><th>Product</th><th>Type</th><th>Amount</th><th>Expected tank change</th><th>Note</th><th></th></tr>`;
+  [...S.doses].sort((a,b)=>b.ts-a.ts).forEach(d=>{const pr=prodById(d.pid);
+    const ex=pr&&d.kind==='single'?doseChange(pr,+d.amt).map(c=>`${esc(PM[c.p].n)} ${fr(c.d)} ${esc(PM[c.p].u)}`).join(', '):(pr?`${pr?'daily → '+d.amt+' '+prodUnit(pr)+'/day':''}`:'');
+    h+=`<tr><td>${fdt(d.ts)}</td><td>${esc(pr?pr.name:'(deleted product)')}</td><td>${d.kind==='single'?'Single dose':'New regular daily dose'}</td><td>${esc(d.amt)} ${pr?prodUnit(pr):''}${d.kind==='regular'?'/day':''}</td><td class="note">${ex}</td><td class="note">${esc(d.note||'')}</td><td><button class="btn del" onclick="delDose('${d.id}')">✕</button></td></tr>`});
+  h+='</table></div></div>';
+  $('#tab-dose').innerHTML=h;
+  if(prods.length){calcRender();logPrev()}
+}
+function calcRender(){
+  const pr=prodById($('#c_prod').value);if(!pr)return;const L=+S.settings.tankL,u=prodUnit(pr);$('#c_unit').textContent=u;
+  if(!L){$('#c_out').innerHTML='<p class="note">Set tank volume in Settings.</p>';return}
+  const amt=parseFloat($('#c_amt').value)||0,ef=effects(pr);
+  let h=`<table><tr><th>Parameter</th><th>Current</th><th>Change from ${fa(amt)} ${u}</th><th>After</th><th>Per 1 ${u}</th><th>${u} for a chosen change…</th></tr>`;
+  ef.forEach(e=>{const d=amt*e.per/L,lat=latest(e.p),after=lat?lat.v+d:null,st=after!=null?statusOf(e.p,after):'ok';
+    h+=`<tr><td>${esc(PM[e.p].n)}</td><td>${lat?fp(e.p,lat.v):'–'}</td><td><b>${fr(d)}</b> ${esc(PM[e.p].u)}</td><td class="hl-${st==='ok'?'ok':st}">${after!=null?fp(e.p,after):'–'}</td><td class="note">${fr(e.per/L)} ${esc(PM[e.p].u)}</td>
+    <td><input type="number" step="any" style="width:90px" placeholder="+${esc(PM[e.p].u)}" oninput="this.nextElementSibling.textContent=this.value?'= '+fa(this.value*${L}/${e.per})+' ${u}':''"><span class="note" style="margin-left:6px"></span></td></tr>`});
+  $('#c_out').innerHTML=h+'</table>';
+}
+function logPrev(){
+  const pr=prodById($('#d_prod').value);if(!pr)return;$('#d_unit').textContent=prodUnit(pr)+($('#d_kind').value==='regular'?' per day':'');
+  const amt=parseFloat($('#d_amt').value);if(isNaN(amt)&&$('#d_kind').value==='single'){$('#d_prev').textContent='';return}
+  if($('#d_kind').value==='single'){const c=doseChange(pr,amt);$('#d_prev').innerHTML=c.length?'Expected tank change: '+c.map(x=>`<b>${esc(PM[x.p].n)} ${fr(x.d)} ${esc(PM[x.p].u)}</b>`).join(', '):'(set tank volume to see expected change)'}
+  else $('#d_prev').innerHTML=`Current regular dose: ${fa(dailyAt(pr,Date.now()))} ${prodUnit(pr)}/day`;
+}
+function addDose(){
+  const ts=fromLocal($('#d_ts').value),amt=parseFloat($('#d_amt').value);
+  if(isNaN(ts)||isNaN(amt))return toast('Enter a date and amount');
+  S.doses.push({id:uid(),ts,pid:$('#d_prod').value,kind:$('#d_kind').value,amt,note:$('#d_note').value});save();toast('Logged');renderDose();
+}
+function delDose(id){if(!confirm('Delete this dose entry?'))return;S.doses=S.doses.filter(d=>d.id!==id);S.del.push(id);save();renderDose()}
+
+/* ================= ICP import (one or many reports) ================= */
+let IMPS=[],IMPUPD=false;
+const SYM2KEY=Object.fromEntries(PARAMS.map(p=>[p.k.toLowerCase(),p.k]));
+const NAME2KEY=(()=>{const m={};PARAMS.forEach(p=>m[p.n.toLowerCase().replace(/\s*\(.*\)/,'')]=p.k);Object.assign(m,{aluminum:'Al',sulfur:'S',sulphur:'S',phosphate:'PO4',phosphorus:'P'});return m})();
+function parseReport(text,fname){
+  const lines=text.split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const rows=[],seen=new Set();
+  const re1=/^\(([A-Za-z0-9]{1,4})\)\s+(.+?)\s+(-?\d[\d.,]*)\s*([µμu]g\/l|mg\/l|g\/l|psu|ppm|ppb)\b\s*(.*)$/i;
+  const re2=/^([A-Za-z][A-Za-z ]{2,22}?)\s+(-?\d[\d.,]*)\s*([µμu]g\/l|mg\/l|g\/l|psu)\b\s*(.*)$/i;
+  for(const l of lines){
+    let sym,name,val,unit,sp,m=l.match(re1);
+    if(m){sym=m[1];name=m[2].trim();val=m[3];unit=m[4];sp=m[5]}
+    else{m=l.match(re2);if(!m)continue;const k=NAME2KEY[m[1].trim().toLowerCase()];if(!k)continue;sym=k;name=m[1].trim();val=m[2];unit=m[3];sp=m[4]}
+    const key=SYM2KEY[sym.toLowerCase()]||null;
+    if(key){if(seen.has(key))continue;seen.add(key)}
+    rows.push({sym,name,val:parseFloat(val.replace(',','.')),unit,sp:sp.replace(/\blamp\b/ig,'').trim(),key,on:true});
+  }
+  const all=text.replace(/\s+/g,' ');
+  const tryD=s=>{const d=new Date(s);const y=d.getFullYear();return (isNaN(d)||y<2005||y>2100)?null:d.getTime()};
+  let ts=null,dm=all.match(/([A-Z][a-z]{2,8})\.? (\d{1,2}),? (\d{4})/);
+  if(dm)ts=tryD(`${dm[1]} ${dm[2]}, ${dm[3]} 12:00`);
+  if(ts==null){dm=all.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);if(dm)ts=tryD(`${dm[1]}-${dm[2]}-${dm[3]}T12:00`)}
+  if(ts==null){dm=all.match(/\b(\d{1,2})[./](\d{1,2})[./](\d{4})\b/);if(dm)ts=tryD(new Date(+dm[3],+dm[2]-1,+dm[1],12))}
+  if(ts==null&&fname){dm=fname.replace(/[_]+/g,' ').match(/([A-Z][a-z]{2,8})\.? (\d{1,2}),? (\d{4})/);if(dm)ts=tryD(`${dm[1]} ${dm[2]}, ${dm[3]} 12:00`)}
+  const sm=all.match(/\(([A-Z]-[A-Za-z0-9]{4,})\)/)||(fname&&fname.match(/\b([A-Z]-[A-Za-z0-9]{5,})\b/));
+  const nm=all.match(/results for:\s*(.+?)\s+-\s+[A-Z][a-z]{2,8}\.? \d/);
+  return {rows,ts,sample:sm?sm[1]:'',site:nm?nm[1]:'',lab:/triton/i.test(all)?'TRITON Lab ICP-OES':''};
+}
+function convUnit(key,val,unit){
+  const canon=PM[key].u,u=unit.toLowerCase().replace('μ','µ');
+  const isMg=u==='mg/l'||u==='ppm',isUg=u==='µg/l'||u==='ug/l'||u==='ppb';
+  if(canon==='µg/L'&&isMg)return val*1000;
+  if(canon==='mg/L'&&isUg)return val/1000;
+  if(canon==='mg/L'&&u==='g/l')return val*1000;
+  return val;
+}
+async function readPdf(file){
+  if(!window.pdfjsLib)throw new Error('PDF reader did not load (offline?) – paste the report text instead');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let out=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    const tc=await (await pdf.getPage(i)).getTextContent(),rows={};
+    tc.items.forEach(it=>{if(!it.str.trim())return;const y=Math.round(it.transform[5]/3);(rows[y]=rows[y]||[]).push({x:it.transform[4],s:it.str})});
+    Object.keys(rows).map(Number).sort((a,b)=>b-a).forEach(y=>out.push(rows[y].sort((a,b)=>a.x-b.x).map(i=>i.s.trim()).join(' ')));
+  }
+  return out.join('\n');
+}
+function renderIcp(){
+  $('#tab-icp').innerHTML=`<div class="card"><h2>Import ICP reports</h2>
+  <div class="drop" id="drop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');icpFiles(event.dataTransfer.files)">
+  Drop one or <b>many</b> ICP report PDFs here (including older tests) or <label style="color:var(--acc);cursor:pointer;text-decoration:underline">browse<input type="file" accept="application/pdf" multiple hidden onchange="icpFiles(this.files)"></label>
+  <div class="note">Each report's own test date is read from the PDF (check it in the review). Reports already imported are detected by sample ID. Files are read in your browser only.</div></div>
+  <h3>…or paste report text</h3><textarea id="icp_txt" rows="4" style="width:100%" placeholder="(Ca) Calcium 449.00 mg/l 415 - 520 mg/l …"></textarea>
+  <div class="row"><button class="btn sec" onclick="icpText($('#icp_txt').value)">Parse text</button><span id="icp_msg" class="note"></span></div></div><div id="icp_prev"></div>`;
+  renderImps();
+}
+async function icpFiles(files){
+  const list=[...files],fails=[];let n=0;
+  for(const f of list){
+    $('#icp_msg').textContent=`Reading ${f.name} (${++n}/${list.length})…`;
+    try{const t=await readPdf(f);if(!addReport(t,f.name,f.lastModified))fails.push(f.name+' (no results found)')}catch(e){fails.push(f.name+' ('+e.message+')')}
+  }
+  IMPS.sort((a,b)=>a.ts-b.ts);
+  $('#icp_msg').textContent=`${IMPS.length} report(s) ready to review`+(fails.length?` – could not read: ${fails.join('; ')}`:'');
+  renderImps();
+}
+function icpText(t){if(!addReport(t,'pasted text',Date.now()))$('#icp_msg').textContent='No result rows recognised. If the PDF is a scanned image, enter results manually on the Add test tab.';else{IMPS.sort((a,b)=>a.ts-b.ts);$('#icp_msg').textContent='';renderImps()}}
+function addReport(t,name,mod){
+  const r=parseReport(t,name);if(!r.rows.length)return false;
+  r.file=name;r.prov=r.lab;r.dateGuess=false;
+  if(r.ts==null){r.ts=mod||Date.now();r.dateGuess=true}
+  r.dup=!!(r.sample&&(S.readings.some(x=>x.m==='icp'&&x.sample===r.sample)||IMPS.some(o=>o.sample===r.sample)));
+  r.on=!r.dup;IMPS.push(r);return true;
+}
+function renderImps(){
+  const el=$('#icp_prev');if(!el)return;if(!IMPS.length){el.innerHTML='';return}
+  let h=`<div class="card"><h2>Review ${IMPS.length} report${IMPS.length>1?'s':''}</h2><p class="note">Tick the reports to import and check each date. Expand a report to correct or untick individual values.</p>`;
+  IMPS.forEach((r,i)=>{
+    const out=r.rows.filter(x=>x.key&&statusOf(x.key,convUnit(x.key,x.val,x.unit))!=='ok').length;
+    h+=`<div class="eff"><div class="row" style="margin-bottom:4px">
+    <label class="chk"><input type="checkbox" ${r.on?'checked':''} onchange="IMPS[${i}].on=this.checked;renderImps()"> <b>Import</b></label>
+    <label>Test date &amp; time${r.dateGuess?' ⚠ not found in report':''}<input type="datetime-local" value="${toLocal(r.ts)}" onchange="IMPS[${i}].ts=fromLocal(this.value);IMPS[${i}].dateGuess=false"></label>
+    <label>Sample ID<input value="${esc(r.sample)}" style="width:130px" onchange="IMPS[${i}].sample=this.value"></label>
+    <label>Provider<input value="${esc(r.prov)}" style="width:170px" onchange="IMPS[${i}].prov=this.value"></label>
+    <span class="note">${esc(r.file)} · ${r.rows.length} rows${out?` · <span class="hl-high">${out} out of your range</span>`:''}${r.dup?' · <span class="hl-low">already imported (sample ID)</span>':''}</span>
+    <button class="btn del" onclick="IMPS.splice(${i},1);renderImps()">✕</button></div>
+    <details><summary class="note" style="cursor:pointer">Show values</summary><div class="tw" style="max-height:340px"><table><tr><th></th><th>Parameter</th><th>Value</th><th>Report setpoint</th><th>Your range</th><th>Status</th></tr>`;
+    r.rows.forEach((x,j)=>{const ok=!!x.key,v=ok?convUnit(x.key,x.val,x.unit):x.val,st=ok?statusOf(x.key,v):'';
+      h+=`<tr><td><input type="checkbox" ${x.on&&ok?'checked':''} ${ok?'':'disabled'} onchange="IMPS[${i}].rows[${j}].on=this.checked"></td><td>${esc(x.name)} <span class="note">(${esc(x.sym)})</span>${ok?'':' <span class="note">– not tracked</span>'}</td>
+      <td><input type="number" step="any" style="width:100px" value="${x.val}" onchange="IMPS[${i}].rows[${j}].val=parseFloat(this.value);renderImps()"> ${esc(x.unit)}</td><td class="note">${esc(x.sp)}</td><td class="note">${ok?rangeTxt(x.key)+' '+esc(PM[x.key].u):''}</td><td>${ok?`<span class="tag ${st}">${stLabel(st)}</span>`:''}</td></tr>`});
+    h+='</table></div></details></div>';
+  });
+  const n=IMPS.filter(r=>r.on).length;
+  h+=`<div class="row" style="margin-top:10px"><label class="chk"><input type="checkbox" ${IMPUPD?'checked':''} onchange="IMPUPD=this.checked"> Also update my ranges/targets from the newest selected report's setpoints</label>
+  <button class="btn" onclick="importIcps()">Import ${n} report${n===1?'':'s'}</button><button class="btn sec" onclick="IMPS=[];renderImps()">Clear all</button></div></div>`;
+  el.innerHTML=h;
+}
+function applySetpoints(r){
+  r.rows.forEach(x=>{if(!x.on||!x.key||!x.sp)return;
+    const sp=x.sp.match(/^(-?\d[\d.]*)\s*-\s*(-?\d[\d.]*)/),s1=x.sp.match(/^(-?\d[\d.]*)/),cur=S.settings.ranges[x.key]||{};
+    if(sp)S.settings.ranges[x.key]={...cur,min:convUnit(x.key,+sp[1],x.unit),max:convUnit(x.key,+sp[2],x.unit)};
+    else if(s1){const v=convUnit(x.key,+s1[1],x.unit);S.settings.ranges[x.key]=v===0?{...cur,min:0,max:0}:{...cur,t:v}}});
+}
+function importIcps(){
+  const sel=IMPS.filter(r=>r.on);if(!sel.length)return toast('Nothing selected');
+  let n=0,c=0;
+  sel.forEach(r=>{if(isNaN(r.ts))return;c++;
+    r.rows.forEach(x=>{if(!x.on||!x.key||isNaN(x.val))return;
+      S.readings.push({id:uid(),ts:r.ts,p:x.key,v:convUnit(x.key,x.val,x.unit),m:'icp',dev:r.prov,sample:r.sample,note:r.site?`ICP report: ${r.site}`:''});n++})});
+  if(IMPUPD)applySetpoints([...sel].sort((a,b)=>b.ts-a.ts)[0]);
+  save();IMPS=[];toast(`Imported ${n} results from ${c} report${c===1?'':'s'}`);show('dash');
+}
+
+/* ================= settings ================= */
+let EDIT=null;
+const PRESETS=[['NaHCO3','Alkalinity – bicarbonate'],['Na2CO3','Alkalinity – carbonate'],['CaCl2_2','Calcium – CaCl₂·2H₂O'],['MgCl2_6','Magnesium – MgCl₂·6H₂O'],['KCl','Potassium – KCl'],['NaNO3','Nitrate – NaNO₃'],['KH2PO4','Phosphate – KH₂PO₄'],['CaOH2','Kalkwasser (saturated)']];
+function renderSet(){
+  const st=S.settings;
+  let h=`<div class="card"><h2>Tank</h2><div class="row">
+  <label>Net tank volume (litres)<input type="number" step="any" value="${st.tankL||''}" onchange="S.settings.tankL=+this.value;save()"></label>
+  <label>Daily evaporation / top-off (litres)<input type="number" step="any" value="${st.evapL||''}" onchange="S.settings.evapL=+this.value;save()"></label>
+  <label>Rate calculation window (days)<input type="number" step="1" value="${st.rateDays}" onchange="S.settings.rateDays=Math.max(2,+this.value||21);save()"></label></div>
+  <p class="note">Use water volume (display + sump minus rock/sand displacement). Evaporation is only used to check how much kalkwasser can be delivered via top-off.</p></div>`;
+  // products
+  h+=`<div class="card"><h2>Dosing products</h2>`;
+  if(!st.products.length)h+='<p class="note">No products yet.</p>';
+  else{h+=`<table><tr><th>Product</th><th>Type</th><th>Effect per 1 ${'unit'} in 1 L of tank</th><th>Regular daily</th><th></th></tr>`;
+    st.products.forEach(p=>{h+=`<tr><td><b>${esc(p.name)}</b></td><td class="note">${p.type==='diy'?'DIY: '+esc((CHEMS[p.chem]||{}).n||'?')+` @ ${p.conc} ${p.concUnit}`:'Label-based'}</td>
+      <td class="note">${effects(p).map(e=>`${esc(PM[e.p].n)} ${fr(e.per)} ${esc(PM[e.p].u)}/${prodUnit(p)}/L`).join('; ')}</td><td>${fa(dailyAt(p,Date.now()))} ${prodUnit(p)}</td>
+      <td style="white-space:nowrap"><button class="btn del" style="color:var(--acc)" onclick="editProd('${p.id}')">Edit</button> <button class="btn del" onclick="delProd('${p.id}')">✕</button></td></tr>`});
+    h+='</table>';}
+  h+=`<div class="row" style="margin-top:10px"><button class="btn" onclick="newProd()">+ Custom product</button>
+  <label>Quick add<select onchange="if(this.value){newProd(this.value);this.value=''}"><option value="">Preset…</option>${PRESETS.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div><div id="pe"></div></div>`;
+  // ranges
+  h+=`<div class="card"><h2>Target ranges</h2><p class="note">Starter values are from the TRITON ICP-OES setpoints (and common reef targets for kit-measured parameters). “Max change/day” limits how fast the dosing recommendations will correct a deficit.</p><div class="tw"><table><tr><th>Parameter</th><th>Unit</th><th>Min</th><th>Max</th><th>Target</th><th>Max change/day</th><th></th></tr>`;
+  GROUPS.forEach(g=>{h+=`<tr><td colspan="7" style="background:var(--bg);font-weight:600">${g}</td></tr>`;
+    PARAMS.filter(p=>p.g===g).forEach(p=>{const r=rng(p.k),mod=!!st.ranges[p.k];
+      const inp=(f,v)=>`<input type="number" step="any" style="width:90px" value="${v==null?'':v}" onchange="setRange('${p.k}','${f}',this.value)">`;
+      h+=`<tr><td>${esc(p.n)} <span class="note">(${p.k})</span></td><td>${esc(p.u)}</td><td>${inp('min',r.min)}</td><td>${inp('max',r.max)}</td><td>${inp('t',r.t)}</td><td>${inp('step',r.step)}</td><td>${mod?`<button class="btn del" onclick="resetRange('${p.k}')" style="color:var(--acc)">reset</button>`:''}</td></tr>`})});
+  h+='</table></div></div>';
+  h+=`<div class="card" id="cloudbox">${cloudCardInner()}</div>`;
+  h+=`<div class="card"><h2>Data</h2><div class="row"><button class="btn" onclick="exportAll()">Export backup (JSON)</button>
+  <label><span>Restore backup</span><input type="file" accept=".json,application/json" onchange="importAll(this.files[0])"></label>
+  <button class="btn sec" onclick="exportCSV()">Export results CSV</button><button class="btn del" onclick="wipe()">Delete all data</button></div>
+  <p class="note">With OneDrive sync on, your data lives in the OneDrive file and is cached in this browser. Export a backup now and then. ${S.readings.length} readings · ${S.doses.length} dose entries.</p></div>`;
+  $('#tab-set').innerHTML=h;
+  if(EDIT)renderProdEditor();
+}
+function setRange(k,f,v){const c=S.settings.ranges[k]=S.settings.ranges[k]||{};c[f]=v===''?null:+v;save();renderSet()}
+function resetRange(k){delete S.settings.ranges[k];save();renderSet()}
+function newProd(chem){
+  const c=chem?CHEMS[chem]:null;
+  EDIT={id:uid(),isNew:true,name:c?c.n.split(' – ')[0].split(' (')[0]:'',type:c||!chem?(c?'diy':'label'):'label',chem:chem||'NaHCO3',conc:c?c.def:80,concUnit:'g/L',unit:'mL',daily:0,eff:[{p:'Alk',mode:'label',x:1,y:100,z:0.1,c:0}]};
+  if(!chem)EDIT.type='label';
+  renderProdEditor();
+}
+function editProd(id){EDIT=JSON.parse(JSON.stringify(prodById(id)));EDIT.isNew=false;if(!EDIT.eff)EDIT.eff=[{p:'Alk',mode:'label',x:1,y:100,z:0.1,c:0}];renderProdEditor()}
+function delProd(id){if(!confirm('Delete this product? Logged doses for it will show as “deleted product”.'))return;S.settings.products=S.settings.products.filter(p=>p.id!==id);save();renderSet()}
+function renderProdEditor(){
+  const E=EDIT;if(!E)return;const el=$('#pe');if(!el)return;
+  const popt=v=>PARAMS.map(p=>`<option value="${p.k}" ${p.k===v?'selected':''}>${esc(p.n)} (${esc(p.u)})</option>`).join('');
+  let h=`<div class="card" style="margin-top:12px;border-color:var(--acc)"><h3 style="margin-top:0">${E.isNew?'New':'Edit'} product</h3>
+  <div class="row"><label>Name<input value="${esc(E.name)}" oninput="EDIT.name=this.value" style="width:240px"></label>
+  <label>Type<select onchange="EDIT.type=this.value;renderProdEditor()"><option value="diy" ${E.type==='diy'?'selected':''}>DIY solution from dry chemical</option><option value="label" ${E.type!=='diy'?'selected':''}>Off-the-shelf / label data</option></select></label>
+  <label>Regular daily dose now (${E.type==='diy'?'mL':esc(E.unit||'mL')}/day)<input type="number" step="any" value="${E.daily||0}" oninput="EDIT.daily=+this.value"></label></div>`;
+  if(E.type==='diy'){
+    h+=`<div class="row"><label>Chemical<select onchange="EDIT.chem=this.value;EDIT.conc=CHEMS[this.value].def;renderProdEditor()">${Object.entries(CHEMS).map(([k,c])=>`<option value="${k}" ${k===E.chem?'selected':''}>${esc(c.n)}</option>`).join('')}</select></label>
+    <label>Amount of dry chemical in solution<input type="number" step="any" value="${E.conc}" oninput="EDIT.conc=+this.value;prodPrev()" style="width:120px"></label>
+    <label>&nbsp;<select onchange="EDIT.concUnit=this.value;prodPrev()"><option ${E.concUnit==='g/L'?'selected':''}>g/L</option><option ${E.concUnit==='mg/L'?'selected':''}>mg/L</option></select></label></div>
+    <div class="note">${CHEMS[E.chem].kalk?'Kalkwasser saturates at roughly 1.5–1.7 g/L at 20 °C – more won\'t dissolve. Normally dosed via top-off.':'Choose the exact hydrate you actually weigh – hydrate water changes how much active ion you get.'}</div>`;
+  }else{
+    h+=`<div class="row"><label>Dose unit<select onchange="EDIT.unit=this.value;renderProdEditor()"><option ${E.unit!=='g'?'selected':''}>mL</option><option ${E.unit==='g'?'selected':''}>g</option></select></label></div>
+    <div class="note">Enter what the label says. For each parameter it affects, either “adding X to Y litres raises it by Z” or “solution contains C per mL”.</div>`;
+    (E.eff||[]).forEach((e,i)=>{
+      h+=`<div class="eff row"><label>Parameter<select onchange="EDIT.eff[${i}].p=this.value">${popt(e.p)}</select></label>
+      <label>Label gives<select onchange="EDIT.eff[${i}].mode=this.value;renderProdEditor()"><option value="label" ${e.mode!=='conc'?'selected':''}>dose → rise in tank</option><option value="conc" ${e.mode==='conc'?'selected':''}>concentration per mL</option></select></label>
+      ${e.mode==='conc'?`<label>Contains (param units, e.g. mg/L, when mixed 1:1000)<input type="number" step="any" value="${e.c}" oninput="EDIT.eff[${i}].c=+this.value;prodPrev()"></label>`:
+      `<label>Dose (${E.unit||'mL'})<input type="number" step="any" value="${e.x}" oninput="EDIT.eff[${i}].x=+this.value;prodPrev()" style="width:80px"></label>
+       <label>into (litres)<input type="number" step="any" value="${e.y}" oninput="EDIT.eff[${i}].y=+this.value;prodPrev()" style="width:80px"></label>
+       <label>raises by<input type="number" step="any" value="${e.z}" oninput="EDIT.eff[${i}].z=+this.value;prodPrev()" style="width:80px"></label>`}
+      <button class="btn del" onclick="EDIT.eff.splice(${i},1);renderProdEditor()">✕</button></div>`});
+    h+=`<button class="btn sec" onclick="EDIT.eff.push({p:'Alk',mode:'label',x:1,y:100,z:0.1,c:0});renderProdEditor()">+ parameter</button>`;
+  }
+  h+=`<div id="pprev" class="note" style="margin:8px 0"></div><div class="row"><button class="btn" onclick="saveProd()">Save product</button><button class="btn sec" onclick="EDIT=null;$('#pe').innerHTML=''">Cancel</button></div></div>`;
+  el.innerHTML=h;prodPrev();
+}
+function prodPrev(){const E=EDIT;if(!E||!$('#pprev'))return;const L=+S.settings.tankL;
+  const ef=effects(E);$('#pprev').innerHTML=ef.length?'Per 1 '+prodUnit(E)+' in your tank'+(L?` (${L} L)`:' (set tank volume to see)')+': '+ef.map(e=>`<b>${esc(PM[e.p].n)} ${L?fr(e.per/L):fr(e.per)+' per L'} ${esc(PM[e.p].u)}</b>`).join(', '):''}
+function saveProd(){
+  const E=EDIT;if(!E.name.trim())return toast('Give the product a name');
+  const out={id:E.id,name:E.name.trim(),type:E.type,daily:+E.daily||0};
+  if(E.type==='diy'){out.chem=E.chem;out.conc=+E.conc;out.concUnit=E.concUnit||'g/L'}else{out.unit=E.unit||'mL';out.eff=E.eff||[]}
+  const i=S.settings.products.findIndex(p=>p.id===E.id);if(i>=0)S.settings.products[i]=out;else S.settings.products.push(out);
+  EDIT=null;save();toast('Product saved');renderSet();
+}
+function exportAll(){dl('reef-tracker-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S,null,1),'application/json')}
+function importAll(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.readings||!j.settings)throw 0;if(!confirm('Replace ALL current data with this backup?'))return;S={...S,...j};S.del=S.del||[];S.settings={...DEF_SETTINGS(),...j.settings};save();toast('Backup restored');show('set')}catch(e){toast('That file is not a valid backup')}};r.readAsText(f)}
+function wipe(){if(!confirm('Delete ALL readings, doses and settings?'))return;if(!confirm('Really delete everything? This cannot be undone.'))return;const ids=[...S.readings,...S.doses].map(x=>x.id);S={readings:[],doses:[],settings:DEF_SETTINGS(),del:[...S.del,...ids],updated:0};save();show('dash')}
+
+/* ================= start ================= */
+load();show('dash');drawSync();cloudInit();
+</script>
+</body>
+</html>
