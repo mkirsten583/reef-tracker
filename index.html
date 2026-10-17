@@ -267,7 +267,13 @@ function drawSync(){
   if(TAB==='set'&&!EDIT){const c=$('#cloudbox');if(c)c.innerHTML=cloudCardInner()}
 }
 const goSet=()=>show('set');
-const GP=()=>'https://graph.microsoft.com/v1.0/me/drive/root:/'+CONFIG.FOLDER.split('/').map(encodeURIComponent).join('/')+'/'+encodeURIComponent(CONFIG.FILE);
+const APP_VER='2026-10-17 folder-guard';
+const FOLDER=()=>(localStorage.getItem('reefFolder')||CONFIG.FOLDER).replace(/\\/g,'/').replace(/^\/+|\/+$/g,'');
+const encPath=p=>p.split('/').map(encodeURIComponent).join('/');
+const GP=()=>'https://graph.microsoft.com/v1.0/me/drive/root:/'+encPath(FOLDER())+'/'+encodeURIComponent(CONFIG.FILE);
+function setLoc(j){
+  try{if(j&&j.parentReference&&j.parentReference.path!=null){const p=decodeURIComponent(j.parentReference.path.replace(/^.*?root:/,'').replace(/^\//,''));SYNC.loc=(p?p+'/':'')+(j.name||CONFIG.FILE)}}catch(e){}
+}
 async function token(){
   try{return (await MS.acquireTokenSilent({scopes:CONFIG.SCOPES,account:ACC})).accessToken}
   catch(e){
@@ -294,7 +300,7 @@ async function cloudPull(first,depth=0){
     const m=await gfetch(GP());
     if(m.status===404){ETAG=null;await cloudPush();return}
     if(!m.ok)throw new Error('OneDrive error '+m.status);
-    const meta=await m.json();
+    const meta=await m.json();setLoc(meta);
     if(!first&&meta.eTag===ETAG){if(isDirty())await cloudPush();else setSync('ok');return}
     const u=meta['@microsoft.graph.downloadUrl'];
     let c=null;
@@ -314,11 +320,21 @@ async function cloudPush(depth=0){
   if(!ACC||PUSHING)return;PUSHING=true;
   try{
     setSync('busy');
+    if(!ETAG){
+      // Never create the upper folders: only the last folder may be created automatically.
+      const segs=FOLDER().split('/');
+      if(segs.length>1){
+        const parent=segs.slice(0,-1).join('/');
+        const pr=await gfetch('https://graph.microsoft.com/v1.0/me/drive/root:/'+encPath(parent));
+        if(pr.status===404)throw new Error('OneDrive folder "'+parent+'" was not found, so nothing was saved and no folders were created. Check the folder name in Settings → OneDrive sync.');
+        if(!pr.ok)throw new Error('Could not check the OneDrive folder (HTTP '+pr.status+')');
+      }
+    }
     const headers={'Content-Type':'application/json'};if(ETAG)headers['If-Match']=ETAG;
     const r=await gfetch(GP()+':/content',{method:'PUT',headers,body:JSON.stringify(S)});
     if(r.status===412&&depth<2){PUSHING=false;await cloudPull(true,depth+1);return}
     if(!r.ok)throw new Error('Save to OneDrive failed ('+r.status+')');
-    const j=await r.json();ETAG=j.eTag||ETAG;setDirty(false);setSync('ok');
+    const j=await r.json();ETAG=j.eTag||ETAG;setLoc(j);setDirty(false);setSync('ok');
   }catch(e){setSync(e.needLogin?'out':'err',e.message)}
   PUSHING=false;
 }
@@ -382,8 +398,16 @@ function cloudCardInner(){
   ${hard?'':`<div class="row"><label>Azure Application (client) ID<input id="cl_id" style="width:320px" value="${esc(localStorage.getItem('reefClientId')||'')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label><button class="btn" onclick="saveClientId()">Save &amp; reload</button></div>`}
   <div class="row">${MS&&!ACC?'<button class="btn" onclick="cloudLogin()">Sign in with Microsoft</button>':''}${ACC?'<button class="btn sec" onclick="cloudNow()">Sync now</button><button class="btn sec" onclick="cloudTest()">Test connection</button><button class="btn sec" onclick="cloudLogout()">Sign out</button>':''}</div>
   ${CTEST?`<pre style="white-space:pre-wrap;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0">${esc(CTEST)}</pre>`:''}
-  <p class="note">Data file: <b>OneDrive › ${esc(CONFIG.FOLDER.replace(/\//g,' › '))} › ${esc(CONFIG.FILE)}</b> (created automatically). Redirect URI to register in Azure (Single-page application): <b>${esc(REDIR)}</b></p>
+  <div class="row"><label>OneDrive folder (path inside your OneDrive)<input id="cl_folder" style="width:340px" value="${esc(FOLDER())}"></label><button class="btn sec" onclick="saveFolder()">Save folder &amp; re-sync</button></div>
+  <p class="note">The folder you enter must already exist except for its last part: if an upper folder is missing, nothing is created and an error is shown instead.</p>
+  <p class="note">Saved at: <b>${SYNC.loc?'OneDrive\\'+esc(SYNC.loc.replace(/\//g,'\\')):'(not saved yet)'}</b> &nbsp;·&nbsp; App version: ${esc(APP_VER)}</p>
+  <p class="note">Redirect URI to register in Azure (Single-page application): <b>${esc(REDIR)}</b></p>
   <p class="note"><b>iPhone:</b> open this page in Safari, tap Share → Add to Home Screen, then open it from the new icon and sign in there (the home-screen app keeps its own sign-in). After that, results you add on the phone save to OneDrive within seconds and appear on your PC when you open or return to the page.</p>`;
+}
+function saveFolder(){
+  const v=$('#cl_folder').value.trim().replace(/\\/g,'/').replace(/^\/+|\/+$/g,'');
+  if(!v||v===CONFIG.FOLDER)localStorage.removeItem('reefFolder');else localStorage.setItem('reefFolder',v);
+  ETAG=null;SYNC.loc='';toast('Folder saved');if(ACC)cloudPull(true);else drawSync();
 }
 function saveClientId(){const v=$('#cl_id').value.trim();if(v)localStorage.setItem('reefClientId',v);else localStorage.removeItem('reefClientId');location.reload()}
 
