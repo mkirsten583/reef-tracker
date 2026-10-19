@@ -580,10 +580,12 @@ const CIRCLES=[
   {n:'Iodine',keys:['I'],cx:836,cy:633,r:165,ty:616},
   {n:'Strontium',keys:['Sr'],cx:1215,cy:633,r:165,ty:616}
 ];
+// whole calendar days between a past time and now (by local date, not by 24-hour blocks)
+const daysAgo=ts=>{const a=new Date(ts),b=new Date();return Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5)};
 function wcBadge(cls){
   const w=[...S.wc].sort((a,b)=>b.ts-a.ts)[0];
   if(!w)return `<div class="wcb ${cls}" onclick="show('wc')"><div class="wl">Last water change</div><div class="wd">none logged yet</div></div>`;
-  const ago=Math.floor((Date.now()-w.ts)/864e5),at=ago<=0?'today':ago===1?'yesterday':ago+' days ago';
+  const ago=daysAgo(w.ts),at=ago<=0?'today':ago===1?'yesterday':ago+' days ago';
   return `<div class="wcb ${cls}" onclick="show('wc')"><div class="wl">Last water change</div><div class="wv">${fa(w.L)} <span class="wu">L</span></div><div class="wd">${fd(w.ts)} · ${at}</div></div>`;
 }
 function circData(c){
@@ -872,7 +874,7 @@ function renderWC(){
   h+=`<div class="card"><h2>Water change history (${all.length})</h2>`;
   if(!all.length)h+='<p class="note">No water changes logged yet.</p>';
   else{
-    const ago=Math.floor((Date.now()-all[0].ts)/864e5);
+    const ago=daysAgo(all[0].ts);
     h+=`<p class="note">Last change: <b>${fdt(all[0].ts)}</b> – ${fa(all[0].L)} L (${ago<=0?'today':ago+' day'+(ago===1?'':'s')+' ago'}). Last 30 days: <b>${d30.length}</b> change${d30.length===1?'':'s'}, <b>${fa(tot)} L</b>${L?` (${fmt(tot/L*100,0)}% of tank volume)`:''}.</p>
     <div class="tw"><table><tr><th>Date</th><th>Removed</th><th>Litres</th><th>% of tank</th><th>Note</th><th></th></tr>`;
     all.forEach(w=>{h+=`<tr><td>${fdt(w.ts)}</td><td>${fa(w.cm)} cm</td><td><b>${fa(w.L)} L</b></td><td>${w.pct!=null?fmt(w.pct,1)+'%':'–'}</td><td class="note">${esc(w.note||'')}</td><td><button class="btn del" onclick="delWC('${w.id}')">✕</button></td></tr>`});
